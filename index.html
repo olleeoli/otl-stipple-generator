@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OTL Stipple Art Generator</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#111;color:#eee;font-family:system-ui,sans-serif;overflow-x:hidden}
+  input[type=range]{accent-color:#d4a84b;width:100%}
+  input[type=color]{cursor:pointer;border:1px solid #333;border-radius:4px;background:#2a2a2a}
+  a.dl{display:block;padding:10px 16px;border-radius:6px;font-size:13px;text-align:center;text-decoration:none;margin-bottom:6px;font-weight:700}
+  .gold-btn{padding:10px 16px;background:#d4a84b;color:#1a1a1a;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;width:100%}
+  .dark-btn{padding:10px 16px;background:#2a2a2a;color:#d4a84b;border:1px solid #333;border-radius:6px;cursor:pointer;font-size:13px;width:100%}
+  .tab{padding:8px 16px;border:1px solid #333;border-radius:6px;cursor:pointer;font-size:13px;background:#2a2a2a;color:#888}
+  .tab.active{background:#d4a84b;color:#1a1a1a;font-weight:700}
+  .section-label{color:#555;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+  .slider-row{margin-bottom:12px}
+  .slider-row .top{display:flex;justify-content:space-between;margin-bottom:4px}
+  .slider-row .top span:first-child{color:#aaa;font-size:12px}
+  .slider-row .top span:last-child{color:#d4a84b;font-size:12px;font-family:monospace}
+  .status{padding:8px 10px;background:#1a1a1a;border-radius:6px;font-size:11px;margin-bottom:12px;word-break:break-word}
+  .drop-zone{border:2px dashed #333;border-radius:8px;padding:24px;text-align:center;margin-bottom:16px;transition:border-color .2s}
+  .drop-zone:hover{border-color:#d4a84b}
+  .stats{margin-top:16px;padding:12px;background:#1a1a1a;border-radius:8px;border:1px solid #2a2a2a;font-size:12px;color:#888;line-height:1.6}
+  .stats strong{color:#d4a84b}
+  .tip-box{padding:8px 10px;background:#1a1a1a;border-radius:6px;font-size:10px;color:#888;line-height:1.6;margin-bottom:14px}
+  .tip-box strong{color:#d4a84b}
+</style>
+</head>
+<body>
+
+<div id="header" style="padding:12px 20px;border-bottom:1px solid #222;display:flex;align-items:center;gap:10px">
+  <div style="width:8px;height:8px;border-radius:50%;background:#d4a84b;box-shadow:0 0 8px #d4a84b"></div>
+  <span style="font-size:16px;font-weight:700;letter-spacing:1px">OTL STIPPLE GENERATOR</span>
+  <span id="dotCount" style="margin-left:auto;color:#666;font-size:12px"></span>
+</div>
+
+<div style="display:flex;min-height:calc(100vh - 49px)">
+  <!-- Sidebar -->
+  <div id="sidebar" style="width:280px;min-width:280px;border-right:1px solid #222;padding:16px;overflow-y:auto">
+    <div id="tabs" style="display:flex;gap:4px;margin-bottom:16px">
+      <button class="tab active" onclick="switchTab('upload')">Upload</button>
+      <button class="tab" onclick="switchTab('preview')">Preview</button>
+      <button class="tab" onclick="switchTab('export')">Export</button>
+    </div>
+    <div id="statusBar" class="status" style="display:none"></div>
+
+    <!-- UPLOAD TAB -->
+    <div id="tab-upload">
+      <div class="drop-zone" id="dropZone" ondrop="handleDrop(event)" ondragover="event.preventDefault()">
+        <div style="font-size:32px;margin-bottom:8px">📷</div>
+        <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp" onchange="handleFile(this.files[0])" style="display:block;width:100%;margin-bottom:8px;font-size:12px;color:#aaa"/>
+        <div style="color:#555;font-size:11px">or drag & drop • or paste (Ctrl+V)</div>
+      </div>
+      <div style="color:#555;font-size:11px;line-height:1.7">
+        <strong style="color:#777">Tips:</strong><br>
+        • High contrast images work best<br>
+        • Portraits, animals, bold shapes read well<br>
+        • SVG output = true &lt;circle&gt; elements for CNC
+      </div>
+    </div>
+
+    <!-- PREVIEW TAB -->
+    <div id="tab-preview" style="display:none">
+      <div class="section-label">Dot Controls</div>
+      <div class="slider-row"><div class="top"><span>Grid Spacing</span><span id="v-spacing">8px</span></div><input type="range" min="3" max="20" step="1" value="8" oninput="updateSetting('spacing',this.value)"/></div>
+      <div class="slider-row"><div class="top"><span>Min Dot Size</span><span id="v-minDot">0.5px</span></div><input type="range" min="0.1" max="3" step="0.1" value="0.5" oninput="updateSetting('minDot',this.value)"/></div>
+      <div class="slider-row"><div class="top"><span>Max Dot Size</span><span id="v-maxDot">3.5px</span></div><input type="range" min="1" max="8" step="0.1" value="3.5" oninput="updateSetting('maxDot',this.value)"/></div>
+      <div class="slider-row"><div class="top"><span>Jitter</span><span id="v-jitter">0.3</span></div><input type="range" min="0" max="1" step="0.05" value="0.3" oninput="updateSetting('jitter',this.value)"/></div>
+      <div class="section-label" style="margin-top:16px">Image</div>
+      <div class="slider-row"><div class="top"><span>Contrast</span><span id="v-contrast">1.4</span></div><input type="range" min="0.5" max="3" step="0.1" value="1.4" oninput="updateSetting('contrast',this.value)"/></div>
+      <div class="slider-row"><div class="top"><span>Brightness</span><span id="v-brightness">0</span></div><input type="range" min="-50" max="50" step="1" value="0" oninput="updateSetting('brightness',this.value)"/></div>
+      <div class="slider-row"><div class="top"><span>Threshold</span><span id="v-threshold">10%</span></div><input type="range" min="0" max="50" step="1" value="10" oninput="updateSetting('threshold',this.value)"/></div>
+      <label style="color:#aaa;font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:12px">
+        <input type="checkbox" checked style="accent-color:#d4a84b" onchange="updateSetting('invert',this.checked)"/> Invert (bright = more dots)
+      </label>
+      <div class="section-label" style="margin-top:16px">Canvas</div>
+      <div class="slider-row"><div class="top"><span>Width</span><span id="v-w">500px</span></div><input type="range" min="200" max="1200" step="1" value="500" oninput="updateSetting('w',this.value)"/></div>
+      <div class="slider-row"><div class="top"><span>Height</span><span id="v-h">500px</span></div><input type="range" min="200" max="1200" step="1" value="500" oninput="updateSetting('h',this.value)"/></div>
+      <div class="section-label" style="margin-top:16px">Colors</div>
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        <label style="flex:1"><div style="color:#aaa;font-size:11px;margin-bottom:4px">Dots</div><input type="color" value="#d4a84b" style="width:100%;height:32px" onchange="updateSetting('dotColor',this.value)"/></label>
+        <label style="flex:1"><div style="color:#aaa;font-size:11px;margin-bottom:4px">Background</div><input type="color" value="#1a1a1a" style="width:100%;height:32px" onchange="updateSetting('bg',this.value)"/></label>
+      </div>
+      <button class="dark-btn" onclick="reprocess()">🔄 Regenerate</button>
+    </div>
+
+    <!-- EXPORT TAB -->
+    <div id="tab-export" style="display:none">
+      <button class="gold-btn" onclick="generateLinks()" style="margin-bottom:12px">⚡ Generate Download Links</button>
+      <div id="exportLinks"></div>
+      <div id="exportStats"></div>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div id="previewArea" style="flex:1;display:flex;align-items:center;justify-content:center;padding:24px;background:#0a0a0a;overflow:auto">
+    <div id="placeholder" style="text-align:center;color:#333"><div style="font-size:48px;margin-bottom:12px">◉</div><div style="font-size:14px">Upload an image to begin</div></div>
+    <svg id="previewSvg" style="display:none;border-radius:4px;box-shadow:0 0 40px rgba(212,168,75,0.05);max-width:100%;max-height:calc(100vh - 100px)"></svg>
+  </div>
+</div>
+
+<script>
+let S = { spacing:8, minDot:0.5, maxDot:3.5, contrast:1.4, brightness:0, threshold:10, invert:true, w:500, h:500, dotColor:'#d4a84b', bg:'#1a1a1a', jitter:0.3 };
+let imgData = null, dots = [], fileName = '';
+
+function setStatus(msg, err) {
+  const el = document.getElementById('statusBar');
+  el.style.display = 'block';
+  el.style.color = err ? '#ff6b6b' : '#d4a84b';
+  el.textContent = msg;
+}
+
+function switchTab(name) {
+  ['upload','preview','export'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t===name ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((btn,i) => {
+    const tabs = ['upload','preview','export'];
+    btn.classList.toggle('active', tabs[i]===name);
+  });
+}
+
+function handleDrop(e) { e.preventDefault(); const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('image/')) handleFile(f); }
+
+function handleFile(file) {
+  if(!file) return;
+  setStatus('Reading file...');
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    setStatus('Decoding image...');
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = img.width; c.height = img.height;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        imgData = ctx.getImageData(0, 0, img.width, img.height);
+        fileName = file.name;
+        const aspect = img.width / img.height;
+        S.h = Math.round(S.w / aspect);
+        process();
+        switchTab('preview');
+      } catch(err) { setStatus('Error: ' + err.message, true); }
+    };
+    img.onerror = () => setStatus('Error: image decode failed', true);
+    img.src = ev.target.result;
+  };
+  reader.onerror = () => setStatus('Error: file read failed', true);
+  reader.readAsDataURL(file);
+}
+
+function process() {
+  if(!imgData) return;
+  const { width:iw, height:ih, data } = imgData;
+  dots = [];
+  const cols = Math.floor(S.w/S.spacing), rows = Math.floor(S.h/S.spacing);
+  const sx = iw/S.w, sy = ih/S.h;
+  for(let r=0;r<rows;r++) {
+    for(let c=0;c<cols;c++) {
+      const jx=(Math.random()-.5)*S.spacing*S.jitter, jy=(Math.random()-.5)*S.spacing*S.jitter;
+      const cx=c*S.spacing+S.spacing/2+jx, cy=r*S.spacing+S.spacing/2+jy;
+      const px=Math.min(Math.max(Math.floor(cx*sx),0),iw-1), py=Math.min(Math.max(Math.floor(cy*sy),0),ih-1);
+      const idx=(py*iw+px)*4;
+      let lum=(0.299*data[idx]+0.587*data[idx+1]+0.114*data[idx+2])/255;
+      lum=Math.pow(lum,1/S.contrast);
+      lum=Math.min(1,Math.max(0,lum+S.brightness/100));
+      const val=S.invert?lum:1-lum;
+      if(val*100<S.threshold) continue;
+      dots.push({x:cx,y:cy,r:S.minDot+val*(S.maxDot-S.minDot)});
+    }
+  }
+  renderPreview();
+  setStatus('✓ ' + dots.length.toLocaleString() + ' dots');
+  document.getElementById('dotCount').textContent = dots.length.toLocaleString() + ' dots';
+}
+
+function renderPreview() {
+  const svg = document.getElementById('previewSvg');
+  const ph = document.getElementById('placeholder');
+  if(!dots.length) { svg.style.display='none'; ph.style.display='block'; return; }
+  ph.style.display='none'; svg.style.display='block';
+  svg.setAttribute('width', Math.min(S.w,700));
+  svg.setAttribute('height', Math.min(S.h,700));
+  svg.setAttribute('viewBox', `0 0 ${S.w} ${S.h}`);
+  let html = `<rect width="${S.w}" height="${S.h}" fill="${S.bg}"/>`;
+  dots.forEach(d => { html += `<circle cx="${d.x.toFixed(1)}" cy="${d.y.toFixed(1)}" r="${d.r.toFixed(1)}" fill="${S.dotColor}"/>`; });
+  svg.innerHTML = html;
+}
+
+function updateSetting(key, val) {
+  if(key==='invert') S[key]=val;
+  else S[key] = isNaN(parseFloat(val)) ? val : parseFloat(val);
+  const el = document.getElementById('v-'+key);
+  if(el) {
+    const suffix = ['spacing','w','h','minDot','maxDot'].includes(key) ? 'px' : key==='threshold' ? '%' : '';
+    el.textContent = S[key] + suffix;
+  }
+  if(imgData) process();
+}
+
+function reprocess() { if(imgData) process(); }
+
+function buildSVG(mode) {
+  let svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${S.w}" height="${S.h}" viewBox="0 0 ${S.w} ${S.h}">\n`;
+  if(mode==='full') svg += `<rect width="${S.w}" height="${S.h}" fill="${S.bg}"/>\n`;
+  const fill = mode==='full' ? S.dotColor : 'black';
+  if(mode==='drill') {
+    const buckets = {};
+    dots.forEach(d => { const k=d.r.toFixed(1); if(!buckets[k]) buckets[k]=[]; buckets[k].push(d); });
+    Object.keys(buckets).sort((a,b)=>parseFloat(a)-parseFloat(b)).forEach(size => {
+      svg += `<g id="drill_r${size}" data-dot-radius="${size}">\n`;
+      buckets[size].forEach(d => { svg += `  <circle cx="${d.x.toFixed(2)}" cy="${d.y.toFixed(2)}" r="0.50" fill="${fill}"/>\n`; });
+      svg += `</g>\n`;
+    });
+  } else {
+    dots.forEach(d => { svg += `<circle cx="${d.x.toFixed(2)}" cy="${d.y.toFixed(2)}" r="${d.r.toFixed(2)}" fill="${fill}"/>\n`; });
+  }
+  svg += `</svg>`;
+  return svg;
+}
+
+function generateLinks() {
+  if(!dots.length) return;
+  const toUri = s => 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(s)));
+  const base = fileName.replace(/\.[^.]+$/,'');
+  const links = document.getElementById('exportLinks');
+  links.innerHTML = `
+    <div class="section-label">CNC — VCarve (circles)</div>
+    <a class="dl" href="${toUri(buildSVG('circles'))}" download="stipple_VCarve_${base}.svg" style="background:#2a2a2a;color:#d4a84b;border:1px solid #d4a84b">💾 Save VCarve SVG</a>
+    <div style="color:#666;font-size:10px;margin-bottom:14px;line-height:1.5;padding:0 4px">True-size circles → VCarve toolpath. High detail, longer cut.</div>
+
+    <div class="section-label">CNC — Drill (fast)</div>
+    <a class="dl" href="${toUri(buildSVG('drill'))}" download="stipple_Drill_${base}.svg" style="background:#d4a84b;color:#1a1a1a;border:none">⚡ Save Drill SVG (recommended)</a>
+    <div class="tip-box">
+      <strong>Drill tip — 60° V-bit on MDF:</strong><br>
+      Dots grouped by size in SVG layers.<br>
+      Select each group → drill toolpath → vary depth per group.<br>
+      Shallow plunge = small dot, deep = large dot. ~80% faster.
+    </div>
+
+    <div class="section-label">Display</div>
+    <a class="dl" href="${toUri(buildSVG('full'))}" download="stipple_${base}.svg" style="background:#2a2a2a;color:#d4a84b;border:1px solid #333">💾 Save Full SVG</a>
+  `;
+
+  const stats = document.getElementById('exportStats');
+  stats.innerHTML = `<div class="stats"><strong>Stats</strong><br>Dots: ${dots.length.toLocaleString()}<br>Canvas: ${S.w}×${S.h}px<br>Grid: ${S.spacing}px • Dots: ${S.minDot}–${S.maxDot}px</div>`;
+  setStatus('✓ Download links ready');
+}
+
+// Paste support
+window.addEventListener('paste', e => {
+  const items = e.clipboardData?.items;
+  if(!items) return;
+  for(let i=0;i<items.length;i++) {
+    if(items[i].type.startsWith('image/')) { handleFile(items[i].getAsFile()); break; }
+  }
+});
+</script>
+</body>
+</html>
